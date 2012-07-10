@@ -9,7 +9,8 @@ to dos:
     yahoo earnings url for querying
     - create getday(x) function to return x days from now (default x = 0)
     then call getpage(y) with y = getday(x)
-    
+    - create watchlist logic
+    - create sep list by date and wtached items 
 
 
 
