@@ -24,18 +24,6 @@ import MySQLdb
 from time import sleep
 import random
 
-#def getfdate(earningsdate):    #function that return formated date for url processing
-##        today = datetime.date.today()
-##        rawdate = today + datetime.timedelta(days=day)
-#        fdate = earningsdate.strftime("%Y%m%d")
-#        return fdate
-#    
-##    for day in range(0,i):
-##        rawdate = today + datetime.timedelta(days=day)
-##        fdate = rawdate.strftime("%Y%m%d")
-##        urldates.append(fdate)
-
-
 
 def getPage(earningsdate):   #function that returns contents of yahoo earnings web page
     
@@ -43,23 +31,6 @@ def getPage(earningsdate):   #function that returns contents of yahoo earnings w
     req = urllib2.Request(url)
     response = urllib2.urlopen(req)
     return response.read()
-
-
-
-
-
-#returns number of elements in data_table, i.e. nb of companies releasing their results
-#this helps define the upper boundary of data_table for further manipulation later
-#def count_tb_elements():
-#    t = True
-#    index = 1
-#    while t == True:
-#        val = data_table('tr')[index].next_sibling
-#        if val == None:
-#            t = False
-#        else: index += 1 #maybe do index += 1 instead
-#    nb_elements = index
-#    return nb_elements
 
 
 
