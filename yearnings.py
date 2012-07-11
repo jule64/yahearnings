@@ -153,7 +153,7 @@ def getsoupdata(today, earningsdate):
     #store earnings data into co_data list object
     co_data = []
     i = 2
-    while data_table('tr')[i].next_sibling <> None: #skipping first row of data, i.e data_table headings
+    while data_table('tr')[i].next_sibling != None: #skipping first row of data, i.e data_table headings
         try:
             co_name = data_table('tr')[i].td.string
         except:
@@ -212,19 +212,9 @@ def main():
         i += 1
         
  
-    
-
-
-
-
-#next steps
-#create db table for watchlist
-#check main table against names in watchlist
-#produce list of companies earnings by date (up to 5 days) with companies from watchlist at top.
-
 
     mydata = retrievedata(dbconn)
-#    print mydata
+    print mydata
     
 #    print "\n".join (map (lambda (x, y): "%s\t%s" % ("\t".join (x), y), mydata) )
     
