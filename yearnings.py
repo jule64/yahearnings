@@ -178,18 +178,6 @@ def main():
 
         if j == True:
             #store data in yahoo_e database
-<<<<<<< HEAD
-            storedata(dbconn, co_data, earningsdate, "earnings")     
-        
-        
-        i += 1
-        
- 
-
-    mydata = retrievedata(dbconn)
-    print mydata
-    
-=======
             storedata(dbconn, co_data, earningsdate, "earnings")
 
 
@@ -202,7 +190,6 @@ def main():
     mydata = retrievedata(dbconn)
     print mydata
 
->>>>>>> dev
 #    print "\n".join (map (lambda (x, y): "%s\t%s" % ("\t".join (x), y), mydata) )
 
     dbconn.close
