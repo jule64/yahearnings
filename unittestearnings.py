@@ -6,65 +6,64 @@ Created on Aug 6, 2012
 import earnings
 from earnings import Earnings
 import unittest
+#import urllib2
 
-
-#TODO:   check pydoc for how to put setUp and tearDown methods in InitTestCase
-#        instead of TestParam (currently this raises an "self.e not found" error)
-class InitTestCase(unittest.TestCase):
-    
-    pass
-#    def setUp(self):
-#        self.e = Earnings()
-#        
-#    def tearDown(self):
-#        self.e.close
+from mock import patch, Mock
 
 
 
-class TestParam(unittest.TestCase):
+class TestEarningsArgs(unittest.TestCase):
+
 
     def setUp(self):
         self.e = Earnings()
-        
-    def tearDown(self):
-        self.e.close
+
     
-    def test_notintegerparam(self):
-        """should raise error when integer not present in param or char found 
-        after first character in param"""
+    def testIncorrectParam(self):
+        '''should raise error when integer not present in param or char found after first character in param'''
         values = ("rr","r3k","34r")
         for v in values:
-            self.assertRaises(earnings.ParamError, self.e.printd(),v)
+            self.assertRaises(earnings.ParamError, self.e.printd, param=v)
 
 
-    def test_paramoneday(self):
-        '''dayslist should hold only one integer if
-        param is an integer'''
-        
-        knownvalues = ((2,2),
-                       (3,3),
-                       (5,5))
-
-        
-        for param,returnval in knownvalues:
-            result = self.e.printd(param,False)
-            self.assertEqual(returnval, result)
-
-        
-    def test_paramonerangedays(self):
-        '''dayslist should hold a range of integers if
-        param is an integer preceded by "r"'''
-        
+    def testIncorrectWatchlistValue(self):
+        '''should raise error when watchlist parameter is different from True or False'''
+        values = ("F"," ","1")
+        for v in values:
+            self.assertRaises(earnings.WatchlistParamError, self.e.printd, watchlist=v)
 
 
-    def test_printexception(self):
-        '''__print should raise an exception if param is not an integer
-        or if the first character is a char other than "r"
-        or if it contains a char after
-        the first character'''
-        
+    
+
+
+class TestWebData(unittest.TestCase):
+
+
+    def setUp(self):
+        self.e = Earnings()
+
+    @patch.object(earnings.Earnings, '_Earnings__deleteData')
+    @patch.object(earnings.Earnings, '_Earnings__getPage')
+    def testEarningsDataExist(self,mockedgetPage,mockeddeleteData):
+        "should raise DateNotAvailableError exception if earnings page does not exist"
+       
+        #Test explanations:
+        #If the earnings page does not exist, __getPage will generate an Exception. Therefore in order
+        #to test this condition I need to simulate an exception in __getPage by patching it and giving it an Exception side effect.
+        #
+        #In addition, before calling __getPage the SUT makes a call to __deleteData, which performs some deletions on the db.
+        #Since I do not want to delete any data for this test I therefore need to patch __deleteData and give it a None return_value
+        #so as to simulate that the deletion was carried out when the SUT calls this method
+
+        mockeddeleteData.return_value = None
+        mockedgetPage.side_effect=Exception('Oops error')
+
+        self.assertRaises(earnings.DateNotAvailableError, self.e.printd)
+
+
 
 
 if __name__ == "__main__":
-    #import sys;sys.argv = ['', 'Test.testName']
-    unittest.main()
+
+    unittest.main(verbosity=2)
+    
