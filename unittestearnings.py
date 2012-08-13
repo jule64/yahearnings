@@ -48,12 +48,13 @@ class TestWebData(unittest.TestCase):
         "should raise DateNotAvailableError exception if earnings page does not exist"
        
         #Test explanations:
-        #If the earnings page does not exist, __getPage will generate an Exception. Therefore in order
-        #to test this condition I need to simulate an exception in __getPage by patching it and giving it an Exception side effect.
+        #If the requested earnings page does not exist, __getPage will generate an Exception. However due to the difficulty
+        #of finding a broken link based on user inputs I decided to mock __getPage to simulate the broken link Exception.
+        #I achieve this by patching __getPage using the patch decorator above and by giving it a side effect = Exception.
         #
         #In addition, before calling __getPage the SUT makes a call to __deleteData, which performs some deletions on the db.
-        #Since I do not want to delete any data for this test I therefore need to patch __deleteData and give it a None return_value
-        #so as to simulate that the deletion was carried out when the SUT calls this method
+        #Since I do not want to delete any data for this test I therefore patched __deleteData and gave it a None return_value below
+        #so as to simulate that the deletion has been carried out when the SUT calls this method
 
         mockeddeleteData.return_value = None
         mockedgetPage.side_effect=Exception('Oops error')
