@@ -29,3 +29,6 @@ CREATE TABLE `watchlist` (
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 
+CREATE VIEW `yahoo_e`.`WATCHLISTRET` AS select DISTINCT `earnings_data`.`CO_NAME`
+FROM `yahoo_e`.`earnings_data` JOIN `yahoo_e`.`watchlist`
+on (`earnings_data`.`CO_NAME` LIKE concat('%',`watchlist`.`NAME`,'%'));
