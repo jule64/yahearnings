@@ -52,7 +52,7 @@ class Earnings():
     Handles web scraping, db calls and printing methods related to
     getting earnings data
     public methods are
-        - print(day from __today or range of days from __today, all companies (default) 
+        - print(day from _today or range of days from _today, all companies (default) 
         or watched items only): prints earnings data
         - addwatched(company name): add new company to watched list
         - getwatched(): print list of wahtched companies
@@ -63,12 +63,12 @@ class Earnings():
         #open connection to db
         #TODO create test for db conn not available
         try:
-            self.__dbconn = MySQLdb.connect(host="localhost",user="root",passwd="jule",db="yahoo_e")
+            self.db_conn = MySQLdb.connect(host="localhost",user="root",passwd="jule",db="yahoo_e")
         except:
             raise DbConnectionError, "Python is unable to connect to the yahoo_e database.\nPlease verify that MySQL Server is running"
 
         #store earnings data into a self.__earndata list object
-        self.__earningsdata = []
+        self.earnings_data = []
         
         
     def __del__(self):
@@ -76,17 +76,17 @@ class Earnings():
         
         
     def close(self):
-        #If self.__dbconn has not been successfully instantiated in self.__init__ then
-        #the code below will skip the __dbconn.close statement
+        #If self.db_conn has not been successfully instantiated in self.__init__ then
+        #the code below will skip the db_conn.close statement
         if hasattr(self,'_Earnings__dbconn'):
-            self.__dbconn.close   
+            self.db_conn.close   
         
 
     
-    def __prettyprint(self, option):
+    def _pretty_print(self, option):
 
  
-        datainfo = {"earnings":(('Name','Ticker','When','Date Earnings','Date Added'),self.__earningsdata),
+        datainfo = {"earnings":(('Name','Ticker','When','Date Earnings','Date Added'),self.earnings_data),
                     }
 
 
@@ -114,60 +114,60 @@ class Earnings():
                          '\n'.join(widthpattern % collist for collist in datainfo[option][1])))
 
 
-     
-    def __sqlstm(self, stmkey):
+
+    def _sql_statements(self, stmkey):
         stm = {"inswatchlist":'''INSERT INTO `watchlist` (NAME, CO_TICKER, DATE_ADDED)
 		            VALUES (%s,%s,%s)''',
 		       "storeearnings":('''INSERT INTO `earnings_data` (CO_NAME, CO_TICKER, CO_WHEN, DATE_EARNINGS, DATE_ADDED)
-		            VALUES (%s,%s,%s,%s,%s)''',self.__earningsdata),
-		       "delday":('''DELETE FROM `earnings_data` WHERE DATE_EARNINGS = %s''',self.__dateearnings),
+		            VALUES (%s,%s,%s,%s,%s)''',self.earnings_data),
+		       "delday":('''DELETE FROM `earnings_data` WHERE DATE_EARNINGS = %s''',self.date_earnings),
                "selearnings":('''SELECT CO_NAME, CO_TICKER, CO_WHEN, DATE_EARNINGS, DATE_ADDED FROM `earnings_data`
-                     WHERE DATE_EARNINGS = %s''',self.__dateearnings),
+                     WHERE DATE_EARNINGS = %s''',self.date_earnings),
                "selwatched":('''select DISTINCT `earnings_data`.`CO_NAME`, `earnings_data`.`CO_TICKER`, `earnings_data`.`CO_WHEN`,
                     `earnings_data`.`DATE_EARNINGS`, `watchlist`.`NAME` AS `WATCHED_NAME`
                     FROM `yahoo_e`.`earnings_data` JOIN `yahoo_e`.`watchlist`
                     on (`earnings_data`.`CO_NAME` LIKE concat('%%',`watchlist`.`NAME`,'%%'))
-                    WHERE `earnings_data`.`DATE_EARNINGS` = %s''',self.__dateearnings),
+                    WHERE `earnings_data`.`DATE_EARNINGS` = %s''',self.date_earnings),
                "selexwatched":('''select DISTINCT `earnings_data`.`CO_NAME`, `earnings_data`.`CO_TICKER`, `earnings_data`.`CO_WHEN`,
                     `earnings_data`.`DATE_EARNINGS`, "" AS `WATCHED_NAME`
                     FROM `yahoo_e`.`earnings_data` LEFT JOIN `yahoo_e`.`WATCHLISTRET`
                     on (`earnings_data`.`CO_NAME` = `WATCHLISTRET`.`CO_NAME`)
                     WHERE `WATCHLISTRET`.`CO_NAME` is null AND `earnings_data`.`DATE_EARNINGS` = %s
-                    ORDER BY `earnings_data`.`CO_NAME`''',self.__dateearnings),
+                    ORDER BY `earnings_data`.`CO_NAME`''',self.date_earnings),
 		       }
         return stm[stmkey]
 
 
 
 
-    def __dbExecute(self, option):
+    def _db_execute(self, option):
         
         #NB: the return type of deletestms[key] needs to be a tuple hence
-        #TODO: ensure statements in __sqlstm are up to date
-        execstms = {
-                   "delday":self.__sqlstm("delday"),
-                   "storeearnings":self.__sqlstm("storeearnings"),
-                   "getearnings":self.__sqlstm("selearnings"),
-                   "getwatched":self.__sqlstm("selwatched"),
-                   "getexwatched":(self.__sqlstm("selexwatched")),                   
+        #TODO: ensure statements in _sql_statements are up to date
+        exec_statements = {
+                   "delday":self._sql_statements("delday"),
+                   "storeearnings":self._sql_statements("storeearnings"),
+                   "getearnings":self._sql_statements("selearnings"),
+                   "getwatched":self._sql_statements("selwatched"),
+                   "getexwatched":(self._sql_statements("selexwatched")),                   
                    }
         
         #Exception handling
         #TODO: raise exception if key not in deletestms AND
         #if return value of deletestms is not a tuple
-        if option not in execstms:
-            raise KeyError, str(option) + " is not a key value in execstms"
+        if option not in exec_statements:
+            raise KeyError, str(option) + " is not a key value in exec_statements"
         
         
         #setup db cursor object
-        c = self.__dbconn.cursor()
+        c = self.db_conn.cursor()
 
         #run query
         #NB: since the number of arguments in execute can vary from one to two
         #I need to add the '*' in order to assign the values returned 
-        #by execstms dynamically into execute
+        #by exec_statements dynamically into execute
         
-        execstm = execstms[option]
+        execstm = exec_statements[option]
         
 
             
@@ -176,10 +176,10 @@ class Earnings():
         if re.search('^get',option):
             if len(execstm) == 1:
                 c.execute(execstm[0])
-                self.__earningsdata = c.fetchall()
+                self.earnings_data = c.fetchall()
             else:
                 c.execute(*execstm)
-                self.__earningsdata = c.fetchall()
+                self.earnings_data = c.fetchall()
         else:
             if len(execstm) > 1:
                 if type(execstm[1]) is list:
@@ -190,50 +190,50 @@ class Earnings():
 
 
         #commit query results to db
-        self.__dbconn.commit()
+        self.db_conn.commit()
 
 
 
-    def __getPage(self):   #function that returns contents of yahoo earnings web page
+    def _get_page(self):   #function that returns contents of yahoo earnings web page
 
-        url = "http://biz.yahoo.com/research/earncal/"+self.__dateearnings.strftime("%Y%m%d")+".html"
-        req = urllib2.Request(url)
+        self._url = "http://biz.yahoo.com/research/earncal/"+self.date_earnings.strftime("%Y%m%d")+".html"
+        req = urllib2.Request(self._url)
         response = urllib2.urlopen(req)
         return response.read()
 
 
     
 
-    def __getsoupdata(self):
+    def _get_soup_data(self):
         
         #obtains earnings data from yahoo earnings and
         #store that data into the yahoo_e database
         
         try:
-            soup = BeautifulSoup(self.__getPage())
+            soup = BeautifulSoup(self._get_page())
         except:
-            raise DateNotAvailableError, "there are no earnings data available for " + str(self.__dateearnings)
+            raise DateNotAvailableError, "there are no earnings data available for " + str(self.date_earnings)
         
-        self.souptable = soup('table')[6]
-        
+        self.soup_table = soup('table')[6]
 
         i = 2
-        while self.souptable('tr')[i].next_sibling != None: #skipping first row of data, i.e data_table headings
+        while self.soup_table('tr')[i].next_sibling != None: #skipping first row of data, i.e data_table headings
             try:
-                co_name = self.souptable('tr')[i].td.string
+                co_name = self.soup_table('tr')[i].td.string
+                print co_name
             except:
                 co_name = "NA"
             try:
-                co_ticker = self.souptable('tr')[i].a.string
+                co_ticker = self.soup_table('tr')[i].a.string
             except:
                 co_ticker = "NA"
             try:
-                co_when = self.souptable('tr')[i].small.string
+                co_when = self.soup_table('tr')[i].small.string
                 if co_when == None:
                     co_when = "NA"
             except:
                 co_when = "NA"
-            self.__earningsdata.append(((co_name),(co_ticker),(co_when),(self.__today),(self.__dateearnings)))
+            self.earnings_data.append(((co_name),(co_ticker),(co_when),(self._today),(self.date_earnings)))
             
             i += 1
     
@@ -241,33 +241,47 @@ class Earnings():
 
 
        
-    def __printday(self,daynum,watchlist):
+    def _print_day(self,daynum,watchlist):
         
-        self.__dateearnings = self.__today + datetime.timedelta(daynum)
+        self.date_earnings = self._today + datetime.timedelta(daynum)
         
         
-#        if self.__dateearnings >= self.__today:
-#
-#            # 1- delete earnings data in db by earnings date
-#            self.__dbExecute("delday")
-#            
-#            # 2- retrieve data from yahoo! earnings webpage and store in db        
-#            self.__getsoupdata()
-#            self.__dbExecute("storeearnings")
+        if self.date_earnings >= self._today:
+ 
+            # 1- delete earnings data in db by earnings date
+            self._db_execute("delday")
+             
+            # 2- retrieve data from yahoo! earnings webpage and store in db        
+            self._get_soup_data()
+            self._db_execute("storeearnings")
        
 
         # 3- retrieve data from db and print
         #     retrieve and print either watchlist only or watchlist and second part list
         #     based on value of watchlist param
         for exestr in ("getwatched","getexwatched"):
-            self.__dbExecute(exestr)
-            self.__prettyprint("earnings")        
+            self._db_execute(exestr)
+            self._pretty_print("earnings")
 
 
-    def __print(self,param,watchlist):
-        '''this method implements printd.  It is made private to
-        ensure that all its methods and
-        variables are hidden from client code
+    def print_earnings(self,param=0,watchlist=False):
+        '''
+        retrieves and prints earnings data.
+        
+        the following args can be provided:
+        
+        - 'param' (default = 0):
+            param can take two forms:
+                - a day,e.g. param=1, for tomorrow's date
+                - a range of days, in which case the number must be preceded
+                by 'r', e.g. r3 (for a three days range from tomorrow)
+            Note if param is a range, it returns always at least the current day's earnings
+            Note param defaults to 0, i.e. todays earnings date
+        
+        - 'watchlist':
+            = False (default) : shows companies included in watchlist followed by those companies not included in the
+            watchlist
+            = True : shows those companies included in watchlist only
         '''
 
         #test for day range or single day
@@ -300,44 +314,16 @@ class Earnings():
 
         dayslist = [g for i,g in enumerate(([days],[i for i in range(days+1)])) if i == rangetype][0]
         
-        self.__today = datetime.date.today()
+        self._today = datetime.date.today()
 
         
         #days to print
         for daynum in dayslist:
-            self.__printday(daynum,watchlist)
+            self._print_day(daynum,watchlist)
             
             
-            
-        
-    def printd(self,param=0,watchlist=False):
-        '''
-        this is the main public method that retrieves and prints earnings data.
-        
-        the following args can be provided:
-        
-        - 'param' (default = 0):
-            param can take two forms:
-                - a day,e.g. param=1, for tomorrow's date
-                - a range of days, in which case the number must be preceded
-                by 'r', e.g. r3 (for a three days range from tomorrow)
-            Note if param is a range, it returns always at least the current day's earnings
-            Note param defaults to 0, i.e. todays earnings date
-        
-        - 'watchlist':
-            = False (default) : shows companies included in watchlist followed by those companies not included in the
-            watchlist
-            = True : shows those companies included in watchlist only
-        '''
-        #this calls the private version of this method to keep all internal variables and 
-        #methods hidden from the client code
-        
-        self.__print(param,watchlist)
     
-    
-    
-    
-    def addtowatchlist(self, name):
+    def add_to_watchlist(self, name):
         pass
 
 
@@ -345,7 +331,7 @@ class Earnings():
 if __name__ == "__main__":
     #import sys;sys.argv = ['', 'Test.testName']
     #this line runs the main method with default values
-    Earnings().printd(-1)
+    Earnings().print_earnings(2)
 
     
     
