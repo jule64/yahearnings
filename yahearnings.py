@@ -5,7 +5,7 @@ import MySQLdb
 import datetime
 from bs4 import BeautifulSoup
 import urllib2
-import sys, traceback
+import sys, traceback, getopt
 import re
 
 
@@ -35,7 +35,12 @@ class WatchlistParamError(Error):
     def __str__(self):
         return self.value
 
-
+class DayRangeError(Error):
+    
+    def __init__(self):
+        self.value = ("Please choose a range between 1 and 5 days")
+    def __str__(self):
+        return self.value
 
 
         
@@ -120,20 +125,20 @@ class Earnings():
 		            VALUES (%s,%s,%s)''',
 		       "storeearnings":('''INSERT INTO `earnings_data` (CO_NAME, CO_TICKER, CO_WHEN, DATE_EARNINGS, DATE_ADDED)
 		            VALUES (%s,%s,%s,%s,%s)''',self.earnings_data),
-		       "delday":('''DELETE FROM `earnings_data` WHERE DATE_EARNINGS = %s''',self.date_earnings),
+		       "delday":('''DELETE FROM `earnings_data` WHERE DATE_EARNINGS = %s''',self._date_earnings),
                "selearnings":('''SELECT CO_NAME, CO_TICKER, CO_WHEN, DATE_EARNINGS, DATE_ADDED FROM `earnings_data`
-                     WHERE DATE_EARNINGS = %s''',self.date_earnings),
+                     WHERE DATE_EARNINGS = %s''',self._date_earnings),
                "selwatched":('''select DISTINCT `earnings_data`.`CO_NAME`, `earnings_data`.`CO_TICKER`, `earnings_data`.`CO_WHEN`,
                     `earnings_data`.`DATE_EARNINGS`, `watchlist`.`NAME` AS `WATCHED_NAME`
                     FROM `yahoo_e`.`earnings_data` JOIN `yahoo_e`.`watchlist`
                     on (`earnings_data`.`CO_NAME` LIKE concat('%%',`watchlist`.`NAME`,'%%'))
-                    WHERE `earnings_data`.`DATE_EARNINGS` = %s''',self.date_earnings),
+                    WHERE `earnings_data`.`DATE_EARNINGS` = %s''',self._date_earnings),
                "selexwatched":('''select DISTINCT `earnings_data`.`CO_NAME`, `earnings_data`.`CO_TICKER`, `earnings_data`.`CO_WHEN`,
                     `earnings_data`.`DATE_EARNINGS`, "" AS `WATCHED_NAME`
                     FROM `yahoo_e`.`earnings_data` LEFT JOIN `yahoo_e`.`WATCHLISTRET`
                     on (`earnings_data`.`CO_NAME` = `WATCHLISTRET`.`CO_NAME`)
                     WHERE `WATCHLISTRET`.`CO_NAME` is null AND `earnings_data`.`DATE_EARNINGS` = %s
-                    ORDER BY `earnings_data`.`CO_NAME`''',self.date_earnings),
+                    ORDER BY `earnings_data`.`CO_NAME`''',self._date_earnings),
 		       }
         return stm[stmkey]
 
@@ -196,13 +201,13 @@ class Earnings():
 
     def _get_page(self):   #function that returns contents of yahoo earnings web page
 
-        self._url = "http://biz.yahoo.com/research/earncal/"+self.date_earnings.strftime("%Y%m%d")+".html"
+        self._url = "http://biz.yahoo.com/research/earncal/"+self._date_earnings.strftime("%Y%m%d")+".html"
         req = urllib2.Request(self._url)
         response = urllib2.urlopen(req)
         return response.read()
 
 
-    
+
 
     def _get_soup_data(self):
         
@@ -212,14 +217,18 @@ class Earnings():
         try:
             soup = BeautifulSoup(self._get_page())
         except:
-            raise DateNotAvailableError, "there are no earnings data available for " + str(self.date_earnings)
+            raise DateNotAvailableError, "there are no earnings data available for " + str(self._date_earnings)
         
         self.soup_table = soup('table')[6]
 
         i = 2
+        tp_index = 0
         while self.soup_table('tr')[i].next_sibling != None: #skipping first row of data, i.e data_table headings
             try:
                 co_name = self.soup_table('tr')[i].td.string
+                tp_index += 1
+                if tp_index > 20:
+                    break
                 print co_name
             except:
                 co_name = "NA"
@@ -233,7 +242,7 @@ class Earnings():
                     co_when = "NA"
             except:
                 co_when = "NA"
-            self.earnings_data.append(((co_name),(co_ticker),(co_when),(self._today),(self.date_earnings)))
+            self.earnings_data.append(((co_name),(co_ticker),(co_when),(self._today),(self._date_earnings)))
             
             i += 1
     
@@ -241,16 +250,16 @@ class Earnings():
 
 
        
-    def _print_day(self,daynum,watchlist):
+    def _print_day(self,daynum,watchlist=False):
         
-        self.date_earnings = self._today + datetime.timedelta(daynum)
+        self._date_earnings = self._today + datetime.timedelta(daynum)
         
         
-        if self.date_earnings >= self._today:
+        if self.isRefresh == True and self._date_earnings >= self._today:
  
             # 1- delete earnings data in db by earnings date
             self._db_execute("delday")
-             
+            
             # 2- retrieve data from yahoo! earnings webpage and store in db        
             self._get_soup_data()
             self._db_execute("storeearnings")
@@ -264,7 +273,8 @@ class Earnings():
             self._pretty_print("earnings")
 
 
-    def print_earnings(self,param=0,watchlist=False):
+
+    def print_earnings(self,days=0,isRange=False,isRefresh=True):
         '''
         retrieves and prints earnings data.
         
@@ -273,9 +283,9 @@ class Earnings():
         - 'param' (default = 0):
             param can take two forms:
                 - a day,e.g. param=1, for tomorrow's date
-                - a range of days, in which case the number must be preceded
-                by 'r', e.g. r3 (for a three days range from tomorrow)
-            Note if param is a range, it returns always at least the current day's earnings
+                - a isRange of days, in which case the number must be preceded
+                by 'r', e.g. r3 (for a three days isRange from tomorrow)
+            Note if param is a isRange, it returns always at least the current day's earnings
             Note param defaults to 0, i.e. todays earnings date
         
         - 'watchlist':
@@ -284,54 +294,87 @@ class Earnings():
             = True : shows those companies included in watchlist only
         '''
 
-        #test for day range or single day
-        #range should not be more than 7 days
-        #single day should not be more than 20 days ahead
+        self.isRefresh = isRefresh
         
-        param = str(param)
-        
-        if param[0] == 'r':
-            rangetype = 1
-            days = param[1:]
-        else: rangetype = 0; days = param
-        
-        #Generate custom exception if int conversion not working
-        try:
-            days = int(days)
-        except:
-            raise ParamError, param
-        
-        #Generate custom exception if watchlist value is incorrect
-        if watchlist not in (True, False):
-            raise WatchlistParamError, watchlist
-        
-        #At this point we have checked that all input parameters are valid
-        
-        
-        
-        #depending on value of rangetype, dayslist will be a list containing either a single day
-        #or a range of days
+        #depending on value of isRange, days will be a number referring either to a single day
+        #or a isRange of days
+        dayslist = []
+        if isRange == True:
+            if days > 5 or days < 1:
+                raise DayRangeError
+            x = 1
+            while x < days+1:
+                dayslist.append(x)
+                x+=1
 
-        dayslist = [g for i,g in enumerate(([days],[i for i in range(days+1)])) if i == rangetype][0]
-        
+        else:
+            dayslist.append(days)
         self._today = datetime.date.today()
 
         
         #days to print
+        print 'About to process the following days: ' + str(dayslist)
         for daynum in dayslist:
-            self._print_day(daynum,watchlist)
+            self._print_day(daynum)
             
             
-    
     def add_to_watchlist(self, name):
         pass
 
 
+def main(argv):
+    #checking command line params
+    
+    isOk = False
+    while isOk == False:
+        try:
+          opts, args = getopt.getopt(argv,"hd:r:n",["help","range=","norefresh"])
+        except getopt.GetoptError:
+          print re.split('/', sys.argv[0])[-1]+' usage: <day> -r <rangeofdays> -n'
+          sys.exit(2)
+        
+        if opts == [] and args.__len__()>0:
+            argv[0]="-d "+argv[0]
+            
+        else:
+            isOk = True
+       
+    
+    isRange = False
+    days = 0
+    isRefresh = True
+    for opt, arg in opts:
+      if opt == '-h' or opt == '--help':
+         print re.split('/', sys.argv[0])[-1]+' usage: <day> -r <rangeofdays> -n'
+         sys.exit()
+      elif opt in ("-d"):
+         try:
+             days = int(arg)
+         except ValueError as e:
+             print "Could not convert data to an integer"
+      elif opt in ("-r", "--range"):
+         try:
+             days = int(arg)
+         except ValueError as e:
+             print "Could not convert data to an integer"
+         else:
+             isRange = True
+      elif opt in ("-n", "--norefresh"):
+          isRefresh = False
+      
+    
+    
+    Earnings().print_earnings(days,isRange,isRefresh)
+    
+
+
     
 if __name__ == "__main__":
+    main(sys.argv[1:])
+    
     #import sys;sys.argv = ['', 'Test.testName']
     #this line runs the main method with default values
-    Earnings().print_earnings(2)
+    
 
     
     
